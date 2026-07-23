@@ -1,6 +1,7 @@
 import "./style.css";
 
 import { compile, type Diagnostic } from "./compiler";
+import { oppositeTheme, resolveTheme, type Theme } from "./theme";
 
 const EXAMPLE_SOURCE = `val n: Int[1..=200000];
 val m: Int[1..=200000];
@@ -21,23 +22,17 @@ if (app === null) {
 }
 
 app.innerHTML = `
-  <header class="site-header">
-    <div>
-      <p class="eyebrow">Validator language playground</p>
-      <h1>Invar</h1>
-    </div>
-    <p class="header-copy">
-      입력 형식을 선언하고 testlib.h 기반 C++ Validator를 즉시 생성합니다.
-    </p>
+  <header class="app-header">
+    <h1>Invar</h1>
+    <button id="theme-button" class="button button-secondary theme-button" type="button">
+      Theme
+    </button>
   </header>
 
   <main class="workspace">
     <section class="panel editor-panel" aria-labelledby="source-title">
       <div class="panel-header">
-        <div>
-          <span class="step">01</span>
-          <h2 id="source-title">Invar source</h2>
-        </div>
+        <h2 id="source-title">Source</h2>
         <div class="panel-actions">
           <label class="source-comment-option">
             <input id="source-comment-checkbox" type="checkbox" checked />
@@ -72,10 +67,7 @@ app.innerHTML = `
 
     <section class="panel output-panel" aria-labelledby="output-title">
       <div class="panel-header">
-        <div>
-          <span class="step">02</span>
-          <h2 id="output-title">testlib validator</h2>
-        </div>
+        <h2 id="output-title">Generated C++</h2>
         <button id="copy-button" class="button button-secondary" type="button" disabled>
           복사
         </button>
@@ -93,10 +85,7 @@ app.innerHTML = `
 
   <section class="diagnostics-section" aria-labelledby="diagnostics-title">
     <div class="diagnostics-heading">
-      <div>
-        <span class="step">03</span>
-        <h2 id="diagnostics-title">Diagnostics</h2>
-      </div>
+      <h2 id="diagnostics-title">Diagnostics</h2>
       <span id="diagnostic-count" class="diagnostic-count">0</span>
     </div>
     <ol id="diagnostics" class="diagnostics-list"></ol>
@@ -106,6 +95,7 @@ app.innerHTML = `
 const sourceEditor = element<HTMLTextAreaElement>("source-editor");
 const sourceLineNumbers = element<HTMLElement>("source-line-numbers");
 const outputEditor = element<HTMLTextAreaElement>("output-editor");
+const themeButton = element<HTMLButtonElement>("theme-button");
 const compileButton = element<HTMLButtonElement>("compile-button");
 const exampleButton = element<HTMLButtonElement>("example-button");
 const sourceCommentCheckbox = element<HTMLInputElement>("source-comment-checkbox");
@@ -116,6 +106,33 @@ const diagnosticsList = element<HTMLOListElement>("diagnostics");
 
 sourceEditor.value = EXAMPLE_SOURCE;
 let renderedLineCount = 0;
+const themePreference = window.matchMedia("(prefers-color-scheme: dark)");
+let currentTheme = resolveTheme(readStoredTheme(), themePreference.matches);
+
+function applyTheme(theme: Theme): void {
+  document.documentElement.dataset.theme = theme;
+  themeButton.textContent = theme === "dark" ? "Dark" : "Light";
+  themeButton.setAttribute(
+    "aria-label",
+    theme === "dark" ? "밝은 테마로 전환" : "어두운 테마로 전환",
+  );
+}
+
+function readStoredTheme(): string | null {
+  try {
+    return window.localStorage.getItem("invar-theme");
+  } catch {
+    return null;
+  }
+}
+
+function storeTheme(theme: Theme): void {
+  try {
+    window.localStorage.setItem("invar-theme", theme);
+  } catch {
+    // 저장소를 사용할 수 없어도 현재 페이지의 테마 전환은 유지한다.
+  }
+}
 
 function updateLineNumbers(): void {
   const lineCount = sourceEditor.value.split("\n").length;
@@ -207,6 +224,11 @@ sourceEditor.addEventListener("keydown", (event) => {
 });
 sourceEditor.addEventListener("input", updateLineNumbers);
 window.addEventListener("resize", updateLineNumbers);
+themeButton.addEventListener("click", () => {
+  currentTheme = oppositeTheme(currentTheme);
+  storeTheme(currentTheme);
+  applyTheme(currentTheme);
+});
 sourceCommentCheckbox.addEventListener("change", runCompiler);
 copyButton.addEventListener("click", () => {
   void copyOutput();
@@ -236,5 +258,6 @@ function element<T extends HTMLElement>(id: string): T {
   return value as T;
 }
 
+applyTheme(currentTheme);
 updateLineNumbers();
 runCompiler();
