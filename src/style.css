@@ -1,0 +1,379 @@
+:root {
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  color: #e5e7eb;
+  background: #090b10;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 20rem;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 15% -10%, rgb(64 92 136 / 24%), transparent 34rem),
+    #090b10;
+}
+
+#app {
+  width: min(100% - 2rem, 96rem);
+  margin: 0 auto;
+  padding: 2rem 0 3rem;
+}
+
+.site-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 0.5rem 0 1.75rem;
+  border-bottom: 1px solid #232833;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #7dd3fc;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  margin-top: 0.2rem;
+  color: #f8fafc;
+  font-size: clamp(2.2rem, 5vw, 4rem);
+  font-weight: 750;
+  letter-spacing: -0.06em;
+  line-height: 0.95;
+}
+
+h2 {
+  color: #f8fafc;
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.header-copy {
+  max-width: 28rem;
+  color: #9ca3af;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  text-align: right;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  padding-top: 1rem;
+}
+
+.panel,
+.diagnostics-section {
+  overflow: hidden;
+  border: 1px solid #252a35;
+  border-radius: 0.85rem;
+  background: rgb(16 19 27 / 88%);
+  box-shadow: 0 1.25rem 4rem rgb(0 0 0 / 18%);
+}
+
+.panel {
+  min-width: 0;
+}
+
+.panel-header,
+.diagnostics-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 4.2rem;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid #252a35;
+}
+
+.panel-header > div,
+.diagnostics-heading > div {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.step {
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.panel-actions,
+.source-comment-option {
+  display: flex;
+  align-items: center;
+}
+
+.panel-actions {
+  gap: 0.75rem;
+}
+
+.source-comment-option {
+  gap: 0.4rem;
+  color: #94a3b8;
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.source-comment-option input {
+  accent-color: #38bdf8;
+}
+
+.code-editor {
+  display: block;
+  width: 100%;
+  height: min(58vh, 38rem);
+  resize: vertical;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  padding: 1.25rem;
+  color: #dbeafe;
+  background: #0b0e14;
+  font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  font-size: 0.86rem;
+  line-height: 1.65;
+  tab-size: 4;
+}
+
+.editor-shell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: stretch;
+  background: #0b0e14;
+}
+
+.source-editor {
+  height: auto;
+  min-height: min(58vh, 38rem);
+  overflow-x: auto;
+  overflow-y: hidden;
+  resize: none;
+}
+
+.line-numbers {
+  min-width: 3.25rem;
+  overflow: hidden;
+  border-right: 1px solid #202632;
+  padding: 1.25rem 0.75rem;
+  color: #475569;
+  background: #090c12;
+  font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  font-size: 0.86rem;
+  line-height: 1.65;
+  text-align: right;
+  white-space: pre;
+  user-select: none;
+}
+
+.code-editor:focus {
+  box-shadow: inset 0 0 0 1px #38bdf8;
+}
+
+.output-editor {
+  color: #cbd5e1;
+  background: #0d1017;
+  resize: none;
+}
+
+.editor-footer,
+.status {
+  min-height: 3.75rem;
+  border-top: 1px solid #252a35;
+  padding: 0.75rem 1rem;
+}
+
+.editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+.status-success {
+  color: #86efac;
+}
+
+.status-error {
+  color: #fda4af;
+}
+
+.button {
+  border: 1px solid transparent;
+  border-radius: 0.45rem;
+  padding: 0.55rem 0.8rem;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.button-primary {
+  color: #082f49;
+  background: #7dd3fc;
+}
+
+.button-primary:hover {
+  background: #bae6fd;
+}
+
+.button-secondary {
+  border-color: #343b49;
+  color: #cbd5e1;
+  background: #171b24;
+}
+
+.button-secondary:hover:not(:disabled) {
+  border-color: #475569;
+  color: #f8fafc;
+  background: #202632;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.diagnostics-section {
+  margin-top: 1rem;
+}
+
+.diagnostic-count {
+  min-width: 1.65rem;
+  border-radius: 999px;
+  padding: 0.2rem 0.5rem;
+  color: #64748b;
+  background: #1a1f29;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.diagnostic-count.has-items {
+  color: #fde68a;
+  background: #422006;
+}
+
+.diagnostics-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.8rem;
+  list-style: none;
+}
+
+.diagnostic,
+.diagnostic-empty {
+  border-radius: 0.55rem;
+  padding: 0.75rem 0.85rem;
+}
+
+.diagnostic {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.8rem;
+  border: 1px solid #303644;
+  background: #11151d;
+}
+
+.diagnostic-error {
+  border-left: 3px solid #fb7185;
+}
+
+.diagnostic-warning {
+  border-left: 3px solid #fbbf24;
+}
+
+.diagnostic-badge,
+.diagnostic-location {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.68rem;
+}
+
+.diagnostic-badge {
+  color: #cbd5e1;
+  text-transform: uppercase;
+}
+
+.diagnostic-message {
+  color: #d1d5db;
+  font-size: 0.82rem;
+}
+
+.diagnostic-location {
+  color: #64748b;
+}
+
+.diagnostic-empty {
+  color: #64748b;
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+@media (max-width: 800px) {
+  #app {
+    width: min(100% - 1rem, 96rem);
+    padding-top: 1rem;
+  }
+
+  .site-header {
+    display: block;
+  }
+
+  .header-copy {
+    margin-top: 1rem;
+    text-align: left;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .code-editor {
+    height: 28rem;
+  }
+
+  .diagnostic {
+    grid-template-columns: auto 1fr;
+  }
+
+  .diagnostic-location {
+    grid-column: 2;
+  }
+}

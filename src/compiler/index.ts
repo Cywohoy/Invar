@@ -1,0 +1,63 @@
+export type {
+  BinaryExpression,
+  BinaryOperator,
+  AssignmentOperator,
+  AssignmentStatement,
+  AssignmentTarget,
+  ArrayType,
+  BlockExpression,
+  BooleanLiteral,
+  BoolType,
+  EmptyStatement,
+  Expression,
+  ExpressionStatement,
+  ForStatement,
+  Identifier,
+  InputBlock,
+  IntExpression,
+  IntRange,
+  IntType,
+  IntegerLiteral,
+  IntegerSign,
+  IfExpression,
+  IfStatement,
+  IndexExpression,
+  IndexTokenPattern,
+  LineInputPattern,
+  NameLineInputPattern,
+  NameExpression,
+  NameTokenPattern,
+  Program,
+  RequireExpression,
+  Statement,
+  StringType,
+  TokenInputPattern,
+  TokenLineInputPattern,
+  TopLevelItem,
+  UnaryExpression,
+  UnaryOperator,
+  UnitType,
+  ValDeclaration,
+  VarDeclaration,
+  ValueDeclaration,
+  ValueType,
+  ValueLineInputPattern,
+  WhileStatement,
+} from "./ast";
+export type { Diagnostic, DiagnosticStage } from "./diagnostic";
+export { compile, type CompileOptions, type CompileResult } from "./compiler";
+export { generateTestlib, type GenerateTestlibOptions } from "./codegen";
+export { lex, type LexResult } from "./lexer";
+export { parse, type ParseResult } from "./parser";
+export {
+  analyze,
+  isSubtype,
+  type AnalyzedProgram,
+  type AnalysisResult,
+  type BaseType,
+  type IntegerInterval,
+  type RefinementType,
+  type SymbolInfo,
+} from "./semantic";
+export type { SourcePosition, SourceSpan } from "./source";
+export { TokenKind, type Token, type TokenKind as TokenKindType } from "./token";
