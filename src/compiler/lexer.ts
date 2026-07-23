@@ -10,6 +10,10 @@ export interface LexResult {
 const KEYWORDS: Readonly<Record<string, TokenKindType>> = {
   val: TokenKind.Val,
   var: TokenKind.Var,
+  fn: TokenKind.Fn,
+  return: TokenKind.Return,
+  break: TokenKind.Break,
+  continue: TokenKind.Continue,
   for: TokenKind.For,
   times: TokenKind.Times,
   while: TokenKind.While,
@@ -23,6 +27,9 @@ const KEYWORDS: Readonly<Record<string, TokenKindType>> = {
   Int: TokenKind.Int,
   String: TokenKind.String,
   Array: TokenKind.Array,
+  Array_v: TokenKind.ArrayV,
+  Byte: TokenKind.Byte,
+  Regex: TokenKind.Regex,
   Bool: TokenKind.Bool,
   Unit: TokenKind.Unit,
 };
@@ -67,6 +74,12 @@ class Lexer {
     const start = this.position();
     const character = this.peek();
 
+    if (character === "r" && this.peekNext() === "\"") {
+      this.advance();
+      this.scanQuotedLiteral(start, "\"", TokenKind.RegexLiteral);
+      return;
+    }
+
     if (isIdentifierStart(character)) {
       this.scanIdentifier(start);
       return;
@@ -78,6 +91,15 @@ class Lexer {
     }
 
     switch (character) {
+      case "'":
+        this.scanQuotedLiteral(start, "'", TokenKind.ByteLiteral);
+        return;
+      case "\"":
+        this.scanQuotedLiteral(start, "\"", TokenKind.StringLiteral);
+        return;
+      case "`":
+        this.scanInputLiteral(start);
+        return;
       case ":":
         this.singleCharacterToken(TokenKind.Colon, start);
         return;
@@ -186,13 +208,7 @@ class Lexer {
   private scanRangeOperator(start: SourcePosition): void {
     this.advance();
     if (this.peek() !== ".") {
-      this.diagnostics.push({
-        stage: "lexer",
-        severity: "error",
-        code: "LEX_UNEXPECTED_CHARACTER",
-        message: "A single '.' is not valid; expected '..' or '..='.",
-        span: spanFrom(start, this.position()),
-      });
+      this.addToken(TokenKind.Dot, start);
       return;
     }
 
@@ -204,6 +220,71 @@ class Lexer {
     }
 
     this.addToken(TokenKind.DotDot, start);
+  }
+
+  private scanQuotedLiteral(
+    start: SourcePosition,
+    delimiter: "'" | "\"",
+    kind: TokenKindType,
+  ): void {
+    this.advance();
+    let escaped = false;
+    while (!this.isAtEnd()) {
+      const character = this.peek();
+      if (character === "\r" || character === "\n") {
+        break;
+      }
+      this.advance();
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === delimiter) {
+        this.addToken(kind, start);
+        return;
+      }
+    }
+    this.diagnostics.push({
+      stage: "lexer",
+      severity: "error",
+      code: "LEX_UNTERMINATED_LITERAL",
+      message: "Literal must be closed before the end of the line.",
+      span: spanFrom(start, this.position()),
+    });
+  }
+
+  private scanInputLiteral(start: SourcePosition): void {
+    this.advance();
+    const isLine = this.peek() === "`";
+    if (isLine) this.advance();
+    const delimiterLength = isLine ? 2 : 1;
+    let escaped = false;
+    while (!this.isAtEnd()) {
+      const character = this.peek();
+      if (character === "\r" || character === "\n") break;
+      if (!escaped && character === "`") {
+        this.advance();
+        if (delimiterLength === 1 || this.peek() === "`") {
+          if (delimiterLength === 2) this.advance();
+          this.addToken(
+            isLine ? TokenKind.LineInputLiteral : TokenKind.TokenInputLiteral,
+            start,
+          );
+          return;
+        }
+        continue;
+      }
+      this.advance();
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+    }
+    this.diagnostics.push({
+      stage: "lexer",
+      severity: "error",
+      code: "LEX_UNTERMINATED_LITERAL",
+      message: "Input literal must be closed before the end of the line.",
+      span: spanFrom(start, this.position()),
+    });
   }
 
   private scanOptionalEqual(

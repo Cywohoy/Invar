@@ -12,6 +12,10 @@ export type TopLevelItem = Statement;
 export type Statement =
   | ValDeclaration
   | VarDeclaration
+  | FunctionDeclaration
+  | ReturnStatement
+  | BreakStatement
+  | ContinueStatement
   | InputBlock
   | AssignmentStatement
   | IfStatement
@@ -89,13 +93,53 @@ export interface WhileStatement {
   readonly span: SourceSpan;
 }
 
+export interface FunctionParameter {
+  readonly kind: "FunctionParameter";
+  readonly name: Identifier;
+  readonly valueType: ValueType;
+  readonly span: SourceSpan;
+}
+
+export interface FunctionDeclaration {
+  readonly kind: "FunctionDeclaration";
+  readonly name: Identifier;
+  readonly parameters: readonly FunctionParameter[];
+  readonly returnType: ValueType;
+  readonly body: BlockExpression | null;
+  readonly span: SourceSpan;
+}
+
+export interface ReturnStatement {
+  readonly kind: "ReturnStatement";
+  readonly value: Expression | null;
+  readonly span: SourceSpan;
+}
+
+export interface BreakStatement {
+  readonly kind: "BreakStatement";
+  readonly span: SourceSpan;
+}
+
+export interface ContinueStatement {
+  readonly kind: "ContinueStatement";
+  readonly span: SourceSpan;
+}
+
 export interface Identifier {
   readonly kind: "Identifier";
   readonly name: string;
   readonly span: SourceSpan;
 }
 
-export type ValueType = IntType | StringType | ArrayType | BoolType | UnitType;
+export type ValueType =
+  | IntType
+  | StringType
+  | ArrayType
+  | DynamicArrayType
+  | ByteType
+  | RegexType
+  | BoolType
+  | UnitType;
 
 export interface IntType {
   readonly kind: "IntType";
@@ -113,6 +157,22 @@ export interface ArrayType {
   readonly kind: "ArrayType";
   readonly elementType: ValueType;
   readonly length: Expression;
+  readonly span: SourceSpan;
+}
+
+export interface DynamicArrayType {
+  readonly kind: "DynamicArrayType";
+  readonly elementType: ValueType;
+  readonly span: SourceSpan;
+}
+
+export interface ByteType {
+  readonly kind: "ByteType";
+  readonly span: SourceSpan;
+}
+
+export interface RegexType {
+  readonly kind: "RegexType";
   readonly span: SourceSpan;
 }
 
@@ -138,8 +198,14 @@ export interface IntRange {
 export type Expression =
   | IntegerLiteral
   | BooleanLiteral
+  | ByteLiteral
+  | StringLiteral
+  | RegexLiteral
+  | ArrayLiteral
   | NameExpression
   | IndexExpression
+  | MemberExpression
+  | CallExpression
   | UnaryExpression
   | BinaryExpression
   | RequireExpression
@@ -164,6 +230,30 @@ export interface BooleanLiteral {
   readonly span: SourceSpan;
 }
 
+export interface ByteLiteral {
+  readonly kind: "ByteLiteral";
+  readonly value: number;
+  readonly span: SourceSpan;
+}
+
+export interface StringLiteral {
+  readonly kind: "StringLiteral";
+  readonly bytes: readonly number[];
+  readonly span: SourceSpan;
+}
+
+export interface RegexLiteral {
+  readonly kind: "RegexLiteral";
+  readonly bytes: readonly number[];
+  readonly span: SourceSpan;
+}
+
+export interface ArrayLiteral {
+  readonly kind: "ArrayLiteral";
+  readonly elements: readonly Expression[];
+  readonly span: SourceSpan;
+}
+
 export interface NameExpression {
   readonly kind: "NameExpression";
   readonly name: string;
@@ -174,6 +264,20 @@ export interface IndexExpression {
   readonly kind: "IndexExpression";
   readonly collection: Expression;
   readonly index: Expression;
+  readonly span: SourceSpan;
+}
+
+export interface MemberExpression {
+  readonly kind: "MemberExpression";
+  readonly object: Expression;
+  readonly member: Identifier;
+  readonly span: SourceSpan;
+}
+
+export interface CallExpression {
+  readonly kind: "CallExpression";
+  readonly callee: Expression;
+  readonly arguments: readonly Expression[];
   readonly span: SourceSpan;
 }
 
@@ -236,7 +340,10 @@ export interface InputBlock {
   readonly span: SourceSpan;
 }
 
-export type LineInputPattern = TokenLineInputPattern | ValueLineInputPattern;
+export type LineInputPattern =
+  | TokenLineInputPattern
+  | ValueLineInputPattern
+  | LiteralLineInputPattern;
 
 export interface TokenLineInputPattern {
   readonly kind: "TokenLineInputPattern";
@@ -253,13 +360,23 @@ export interface ValueLineInputPattern {
   readonly span: SourceSpan;
 }
 
+export interface LiteralLineInputPattern {
+  readonly kind: "LiteralLineInputPattern";
+  readonly bytes: readonly number[];
+  readonly terminated: boolean;
+  readonly span: SourceSpan;
+}
+
 export interface NameLineInputPattern {
   readonly kind: "NameLineInputPattern";
   readonly name: string;
   readonly span: SourceSpan;
 }
 
-export type TokenInputPattern = NameTokenPattern | IndexTokenPattern;
+export type TokenInputPattern =
+  | NameTokenPattern
+  | IndexTokenPattern
+  | LiteralTokenPattern;
 
 export interface NameTokenPattern {
   readonly kind: "NameTokenPattern";
@@ -270,5 +387,11 @@ export interface NameTokenPattern {
 export interface IndexTokenPattern {
   readonly kind: "IndexTokenPattern";
   readonly target: IndexExpression;
+  readonly span: SourceSpan;
+}
+
+export interface LiteralTokenPattern {
+  readonly kind: "LiteralTokenPattern";
+  readonly bytes: readonly number[];
   readonly span: SourceSpan;
 }

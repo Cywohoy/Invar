@@ -70,6 +70,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   min-width: 20rem;
@@ -98,6 +102,20 @@ input {
   border-radius: 0.7rem;
   padding: 0.65rem 0.8rem;
   background: var(--surface);
+}
+
+.brand {
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
 }
 
 h1,
@@ -255,6 +273,9 @@ h2 {
 }
 
 .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 0;
   border-radius: 0.35rem;
   padding: 0.45rem 0.65rem;
@@ -263,9 +284,15 @@ h2 {
   font-size: 0.72rem;
   font-weight: 650;
   cursor: pointer;
+  text-decoration: none;
   transition:
     background-color 100ms ease,
     color 100ms ease;
+}
+
+.header-actions .button[aria-current="page"] {
+  color: var(--accent-text);
+  background: var(--accent);
 }
 
 .button:focus-visible,
@@ -375,6 +402,179 @@ h2 {
   text-align: center;
 }
 
+.reference-layout {
+  display: grid;
+  grid-template-columns: 14rem minmax(0, 1fr);
+  align-items: start;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.reference-sidebar {
+  position: sticky;
+  top: 0.75rem;
+  border-radius: 0.7rem;
+  padding: 0.65rem;
+  background: var(--surface);
+}
+
+.reference-sidebar-title,
+.reference-sidebar nav a {
+  display: block;
+  border-radius: 0.4rem;
+  padding: 0.65rem 0.7rem;
+  color: var(--muted);
+  font-size: 0.76rem;
+  text-decoration: none;
+}
+
+.reference-sidebar-title {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.reference-sidebar nav {
+  display: grid;
+  gap: 0.2rem;
+  margin-top: 0.35rem;
+}
+
+.reference-sidebar nav a:hover {
+  color: var(--text);
+  background: var(--control);
+}
+
+.reference-sidebar nav a[aria-current="page"] {
+  color: var(--accent-text);
+  background: var(--accent);
+  font-weight: 650;
+}
+
+.reference-sidebar a:focus-visible,
+.reference-index-card:focus-visible,
+.reference-document-header a:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.reference-document {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.reference-document-header {
+  border-radius: 0.7rem;
+  padding: clamp(1.4rem, 3vw, 2.25rem);
+  background: var(--surface);
+}
+
+.reference-document-header > span,
+.reference-document-header > a {
+  display: inline-block;
+  margin-bottom: 0.45rem;
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+}
+
+.reference-document-header h1 {
+  font-size: clamp(1.45rem, 3vw, 2rem);
+  letter-spacing: -0.035em;
+}
+
+.reference-document-header p {
+  max-width: 48rem;
+  margin: 0.7rem 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.reference-index-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.reference-index-card {
+  border-radius: 0.7rem;
+  padding: 1.2rem;
+  color: var(--text);
+  background: var(--surface);
+  text-decoration: none;
+}
+
+.reference-index-card:hover {
+  background: var(--surface-muted);
+}
+
+.reference-index-card h2 {
+  font-size: 0.92rem;
+}
+
+.reference-index-card p {
+  margin: 0.55rem 0 1rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.reference-index-card span {
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.reference-blocks {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.reference-block {
+  border-radius: 0.7rem;
+  padding: clamp(1.15rem, 2.5vw, 1.7rem);
+  background: var(--surface);
+}
+
+.reference-block h2 {
+  margin-bottom: 0.65rem;
+  font-size: 0.95rem;
+}
+
+.reference-block p,
+.reference-block li {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.75;
+}
+
+.reference-block p {
+  margin: 0.45rem 0 0;
+}
+
+.reference-block ul {
+  margin: 0.7rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.reference-block pre {
+  overflow-x: auto;
+  margin: 1rem 0 0;
+  border-radius: 0.55rem;
+  padding: 1rem;
+  color: var(--text);
+  background: var(--editor);
+}
+
+.reference-block code {
+  font-family: "Casquare Code Std", ui-monospace, monospace;
+  font-size: 0.78rem;
+  line-height: 1.7;
+}
+
 @media (max-width: 900px) {
   #app {
     width: min(100% - 1rem, 100rem);
@@ -383,6 +583,24 @@ h2 {
 
   .workspace {
     grid-template-columns: 1fr;
+  }
+
+  .reference-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .reference-sidebar {
+    position: static;
+  }
+
+  .reference-sidebar nav {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 0.15rem;
+  }
+
+  .reference-sidebar nav a {
+    flex: 0 0 auto;
   }
 
   .diagnostic {
@@ -394,7 +612,27 @@ h2 {
   }
 }
 
+@media (max-width: 600px) {
+  .reference-index-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 540px) {
+  .app-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .header-actions {
+    width: 100%;
+  }
+
+  .header-actions .button {
+    flex: 1;
+  }
+
   .panel-header {
     align-items: flex-start;
     flex-direction: column;

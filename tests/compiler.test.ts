@@ -22,16 +22,38 @@ describe("testlib generator", () => {
     expect(result.code).toContain("registerValidation(argc, argv);");
     expect(result.code).toContain("long long _512_n;");
     expect(result.code).toContain("std::string _512_s;");
-    expect(result.code).toContain("_512_n = inf.readLong();");
-    expect(result.code).toContain(
-      "(1LL <= _512_n) && (_512_n <= 200000LL)",
+    expect(result.code).toMatch(
+      /_512_n = inf\.readLong\(_513m\d+, _513x\d+, "n"\);/,
     );
     expect(result.code).toContain("inf.readSpace();");
     expect(result.code).toContain(
-      "static_cast<long long>(_512_s.size()) == _512_n",
+      'inf.readToken(format("[^\\\\ ]{%lld}",_512_n), "s")',
     );
     expect(result.code).toContain("inf.readEoln();");
     expect(result.code).toContain("inf.readEof();");
+  });
+
+  it("uses named testlib readers instead of unnamed validator reads", () => {
+    const result = compile(`
+      val unrestricted: Int;
+      val bounded: Int[1..10];
+      val token: String[3];
+      input { unrestricted, bounded, token; }
+    `);
+
+    expect(result.diagnostics).toEqual([]);
+    const code = result.code ?? "";
+    expect(code).toContain(
+      '_512_unrestricted = inf.readLong(LLONG_MIN, LLONG_MAX, "unrestricted");',
+    );
+    expect(code).toMatch(
+      /_512_bounded = inf\.readLong\(_513m\d+, _513x\d+, "bounded"\);/,
+    );
+    expect(code).toContain(
+      '_512_token = inf.readToken(format("[^\\\\ ]{%lld}",3LL), "token");',
+    );
+    expect(code).not.toContain("inf.readLong();");
+    expect(code).not.toContain("inf.readToken();");
   });
 
   it("includes the original source as comments unless disabled", () => {
@@ -58,10 +80,10 @@ describe("testlib generator", () => {
     `);
 
     expect(result.diagnostics.map((diagnostic) => diagnostic.severity)).toEqual([]);
-    expect(result.code).toContain(
-      "((-9223372036854775807LL - 1) < _512_n)",
+    expect(result.code).toMatch(/_513m\d+=iv_bl\(_513l\d+\);/);
+    expect(result.code).toMatch(
+      /_512_n = inf\.readLong\(_513m\d+, _513x\d+, "n"\);/,
     );
-    expect(result.code).toContain("(_512_n <= 9223372036854775807LL)");
   });
 
   it("returns generated code together with non-fatal warnings", () => {
@@ -125,9 +147,9 @@ describe("testlib generator", () => {
     const code = result.code ?? "";
     const operations = [
       "inf.readEoln();",
-      "_512_a = inf.readLong();",
+      '_512_a = inf.readLong(LLONG_MIN, LLONG_MAX, "a");',
       "inf.readSpace();",
-      "_512_b = inf.readLong();",
+      '_512_b = inf.readLong(LLONG_MIN, LLONG_MAX, "b");',
       "inf.readEoln();",
       "inf.readEoln();",
       "inf.readEof();",
@@ -229,10 +251,11 @@ describe("testlib generator", () => {
 
     expect(result.diagnostics).toEqual([]);
     const code = result.code ?? "";
-    expect(code).toContain("_512_length = inf.readLong();");
-    expect(code).toContain("_512_text = inf.readLine();");
+    expect(code).toMatch(
+      /_512_length = inf\.readLong\(_513m\d+, _513x\d+, "length"\);/,
+    );
     expect(code).toContain(
-      "static_cast<long long>(_512_text.size()) == _512_length",
+      'inf.readLine(format("[^\\r\\n]{%lld}",_512_length), "text")',
     );
     expect(code).not.toContain("SEM_EMPTY_STRING_TOKEN");
   });
@@ -244,7 +267,9 @@ describe("testlib generator", () => {
     `);
 
     expect(result.diagnostics).toEqual([]);
-    expect(result.code).toContain("_512_empty = inf.readLine();");
+    expect(result.code).toContain(
+      '_512_empty = inf.readLine(format("[^\\r\\n]{%lld}",0LL), "empty");',
+    );
   });
 
   it("supports an unterminated final whole-line String", () => {
@@ -257,6 +282,19 @@ describe("testlib generator", () => {
     expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
       "SEM_MISSING_FINAL_EOLN",
     ]);
+  });
+
+  it("reports actual and expected byte lengths for custom final-line reads", () => {
+    const result = compile(`
+      val text: String[3];
+      input { line(text) }
+    `);
+
+    expect(result.code).toContain('_512_text=iv_l();');
+    expect(result.code).toContain('iv_z(_512_text,3LL,"text","String");');
+    expect(result.code).toContain(
+      "%s '%s' has byte length %llu; expected %lld.",
+    );
   });
 
   it("applies ordinary name, assignment, and dependency checks to line patterns", () => {
@@ -281,17 +319,15 @@ describe("testlib generator", () => {
     );
   });
 
-  it("rejects continuing an unterminated whole-line pattern in another block", () => {
+  it("defers continuing an unterminated whole-line pattern to runtime", () => {
     const result = compile(`
       val a, b: String;
       input { line(a) }
       input { line(b); }
     `);
 
-    expect(result.code).toBeNull();
-    expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toContain(
-      "SEM_LINE_PATTERN_CANNOT_CONTINUE",
-    );
+    expect(result.code).not.toBeNull();
+    expect(result.code).toContain('quitf(_fail, "Expected a whole line at line start.")');
   });
 
   it("generates Bool conditions, require, and logical operators", () => {
@@ -305,9 +341,9 @@ describe("testlib generator", () => {
 
     expect(result.diagnostics).toEqual([]);
     expect(result.code).toContain("iv_q(");
-    expect(result.code).toContain("_512_n) >= (-5LL");
+    expect(result.code).toContain("iv_g(_512_n,-5LL)>=0");
     expect(result.code).toContain("&&");
-    expect(result.code).toContain("_512_text) == (_512_text");
+    expect(result.code).toContain("iv_g(_512_text,_512_text)==0");
     expect(result.code).toContain("||");
     expect(result.code).toContain('"n >= -5 && n <= 5"');
   });
@@ -343,9 +379,11 @@ describe("testlib generator", () => {
     `);
 
     expect(result.diagnostics).toEqual([]);
-    expect(result.code).toContain("if (((_512_selector) == (0LL))) {");
-    expect(result.code).toContain("_512_x = inf.readLong();");
-    expect(result.code).toContain("iv_q(((_512_x) > (0LL))");
+    expect(result.code).toContain("if ((iv_g(_512_selector,0LL)==0)) {");
+    expect(result.code).toContain(
+      '_512_x = inf.readLong(LLONG_MIN, LLONG_MAX, "x");',
+    );
+    expect(result.code).toContain("iv_q((iv_g(_512_x,0LL)>0)");
   });
 
   it("rejects a value that is assigned in only one branch after the if", () => {
@@ -384,7 +422,7 @@ describe("testlib generator", () => {
     `);
 
     expect(valid.diagnostics).toEqual([]);
-    expect(valid.code).toContain("if (((_512_selector) == (0LL))) {");
+    expect(valid.code).toContain("if ((iv_g(_512_selector,0LL)==0)) {");
     expect(valid.code).not.toContain("}\n    else {");
     expect(maybeAssigned.code).toBeNull();
     expect(maybeAssigned.diagnostics.map((diagnostic) => diagnostic.code)).toContain(
@@ -606,8 +644,8 @@ describe("testlib generator", () => {
     expect(result.code).toContain(
       "const long long _513s",
     );
-    expect(result.code).toContain(
-      "static_cast<long long>(_512_text.size()) == _513s",
+    expect(result.code).toMatch(
+      /inf\.readToken\(format\("\[\^\\\\ \]\{%lld\}",_513s\d+\), "text"\)/,
     );
   });
 
@@ -656,7 +694,7 @@ describe("testlib generator", () => {
     );
   });
 
-  it("requires each loop iteration to preserve the input line layout", () => {
+  it("defers loop input line-layout failures to runtime", () => {
     const result = compile(`
       val count: Int[1..=3];
       var value: Int;
@@ -666,10 +704,8 @@ describe("testlib generator", () => {
       }
     `);
 
-    expect(result.code).toBeNull();
-    expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toContain(
-      "SEM_LOOP_INPUT_LAYOUT_NOT_CLOSED",
-    );
+    expect(result.code).not.toBeNull();
+    expect(result.code).toContain("if (_513f)inf.readSpace();");
   });
 
   it("keeps assignments from the first while condition evaluation", () => {
@@ -730,7 +766,7 @@ describe("testlib generator", () => {
     expect(result.code).toContain(".w(0LL).w(1LL)=7LL;");
     expect(result.code).toContain(".r(0LL).r(1LL)");
     expect(result.code).toContain(
-      "Invar Array element is read before initialization.",
+      "Invar Array element at index %lld is read before initialization.",
     );
   });
 
@@ -819,14 +855,16 @@ describe("testlib generator", () => {
 
     expect(staticFailure.code).toBeNull();
     expect(staticFailure.diagnostics.map((diagnostic) => diagnostic.code)).toContain(
-      "SEM_ARRAY_INDEX_OUT_OF_BOUNDS",
+      "SEM_INDEX_OUT_OF_BOUNDS",
     );
     expect(dynamic.diagnostics).toEqual([]);
     expect(dynamic.code).toContain(".w(_512_index)");
-    expect(dynamic.code).toContain("Invar Array index is out of bounds.");
+    expect(dynamic.code).toContain(
+      "Invar Array index %lld is out of bounds for length %llu.",
+    );
   });
 
-  it("reads Array[String[1], n] as one compact token", () => {
+  it("does not give fixed Arrays a special compact-token input form", () => {
     const compact = compile(`
       val length: Int[1..=10];
       input { length; }
@@ -839,10 +877,9 @@ describe("testlib generator", () => {
       input { values; }
     `);
 
-    expect(compact.diagnostics).toEqual([]);
-    expect(compact.code).toContain("const std::string _513t");
-    expect(compact.code).toContain(
-      "std::string(1, _513t",
+    expect(compact.code).toBeNull();
+    expect(compact.diagnostics.map((diagnostic) => diagnostic.code)).toContain(
+      "SEM_TYPE_NOT_INPUTTABLE",
     );
     expect(ordinaryArray.code).toBeNull();
     expect(ordinaryArray.diagnostics.map((diagnostic) => diagnostic.code)).toContain(
@@ -860,8 +897,12 @@ describe("testlib generator", () => {
 
     expect(result.diagnostics).toEqual([]);
     expect(result.code).toContain("auto& _513t");
-    expect(result.code).toContain("inf.readLong();");
-    expect(result.code).toContain("violates its Invar range");
+    expect(result.code).toMatch(
+      /inf\.readLong\(_513m\d+, _513x\d+, "values\[index\]"\)/,
+    );
+    expect(result.code).toMatch(
+      /inf\.readLong\(_513m\d+, _513x\d+, "values\[1\]"\)/,
+    );
   });
 
   it("uses the declared var interval as the possible dependent bound", () => {
@@ -902,7 +943,7 @@ describe("testlib generator", () => {
       var length: Int[1..=10] = 3;
       val letters: Array[String[1], length];
       length = 5;
-      input { letters; }
+      input {}
     `);
 
     expect(result.diagnostics).toEqual([]);
@@ -911,9 +952,6 @@ describe("testlib generator", () => {
     );
     expect(result.code).toMatch(
       /iv_v<std::string>\(_513s\d+,/,
-    );
-    expect(result.code).toMatch(
-      /size\(\)\) == _513s\d+,/,
     );
   });
 
@@ -943,9 +981,11 @@ describe("testlib generator", () => {
     expect(result.code).toMatch(
       /const long long _513s\d+ = _512_bounds\.r\(_512_index\);/,
     );
-    expect(result.code).toContain("Invar Array index is out of bounds.");
     expect(result.code).toContain(
-      "Invar Array element is read before initialization.",
+      "Invar Array index %lld is out of bounds for length %llu.",
+    );
+    expect(result.code).toContain(
+      "Invar Array element at index %lld is read before initialization.",
     );
   });
 

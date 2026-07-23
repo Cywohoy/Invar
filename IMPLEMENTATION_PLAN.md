@@ -267,12 +267,12 @@ compile(source)
 - `while (condition) { ... }`
 - 반복 횟수의 단일 평가와 음수 검사
 - 0회 실행 가능성을 고려한 definite-assignment 분석
-- 반복 입력 본문의 줄 경계 보존 검사
+- 입력 줄 상태의 생성 Validator 런타임 검사
 - 선택적인 `else`와 Unit 블록 분기로 이루어진 statement 형태 `if`
-- statement 형태 `if`, `for`, `while`의 세미콜론 없는 문법
+- statement 형태 `if`, `for`, `while` 뒤의 선택적인 빈 세미콜론
 
-현재 반복문에는 이터레이터, `break`, `continue`가 없다. 조건에 따른
-refinement narrowing과 사용자 함수도 후속 설계 대상으로 남긴다.
+`break`와 `continue`를 지원한다. for 이터레이터와 조건에 따른
+refinement narrowing은 후속 설계 대상으로 남긴다.
 
 ### 구현됨: 배열과 선언 initializer
 
@@ -284,13 +284,29 @@ refinement narrowing과 사용자 함수도 후속 설계 대상으로 남긴다
 - `input { a[i]; }` 원소 입력
 - 정적 인덱스 오류와 생성 Validator의 동적 경계 검사
 - 생성 Validator의 원소 미초기화 읽기 검사
-- `Array[String[1], n]`의 압축 토큰 입력
+- 고정 배열의 `.length`
 - 단일 `val`/`var` 선언의 `= expression` initializer
 
-배열 전체 줄 입력, 배열 리터럴과 배열용 반복자 문법은 아직 도입하지
-않았다. `var`와 배열 원소는 선언 시 snapshot으로 refinement에서
+배열 전체 줄 입력과 배열용 반복자 문법은 아직 도입하지 않았다.
+`var`와 배열 원소는 선언 시 snapshot으로 refinement에서
 사용할 수 있다. 배열 원소의 동적 경계와 초기화는 생성 Validator가
 검사한다.
+
+### 구현됨: 값 리터럴, 동적 배열, 입력 리터럴과 함수
+
+- UTF-8 바이트열 `String` 리터럴과 한 바이트 `Byte` 리터럴
+- 문자열의 읽기 전용 바이트 인덱싱과 `.length`
+- `Array_v[T]`, 문맥형 배열 리터럴, `push`, `pop`, `resize`
+- 고정/가변 배열의 저장소 공유 얕은 복사
+- 백틱 토큰 리터럴과 이중 백틱 전체 줄 리터럴
+- testlib `Regex` 값, `r"..."`와 `matches(String, Regex)`
+- 명시적 매개변수·반환 타입을 갖는 함수와 중첩 함수
+- 함수 선언/정의 분리, 호출 전 선언, 재귀와 상호 재귀
+- tail expression 반환과 명시적 `return`
+
+캡처한 `var`와 배열 원소 변경, 재귀 호출 효과의 고정점 분석,
+dependent 함수 타입의 호출 지점 인수 치환을 지원한다. 함수의 일급
+값 취급과 탈출하는 클로저는 TODO로 남긴다.
 
 ## 7단계: 최소 웹 UI
 
@@ -309,6 +325,7 @@ refinement narrowing과 사용자 함수도 후속 설계 대상으로 남긴다
 - 일반 UI에는 Pretendard, 코드 영역에는 Casquare Code Std를 직접 포함
 - 선과 그림자 대신 배경 면과 여백으로 작업 영역을 구분하는 디자인
 - 시스템 설정을 기본으로 따르고 선택을 저장하는 밝은/어두운 테마
+- 현재 구현된 문법을 요약하고 전체 사양으로 연결하는 언어 레퍼런스
 
 에디터 라이브러리, 문법 강조, 파일 저장 같은 기능은 필요성이 확인되기
 전까지 추가하지 않는다.
@@ -332,8 +349,7 @@ refinement narrowing과 사용자 함수도 후속 설계 대상으로 남긴다
 - npm 패키지 구성
 - 브라우저와 Node.js용 공개 API
 - 버전 및 호환성 정책
-- 배열 리터럴, 배열 전체 줄 입력, for 이터레이터, `break`,
-  `continue` 및 사용자 정의 함수
+- 배열 전체 줄 입력, for 이터레이터
 - 여러 `input` 블록과 단계적 입력 및 검증
 
 ## 진행 범위 선택지

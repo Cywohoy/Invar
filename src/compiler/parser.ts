@@ -4,6 +4,13 @@ import type {
   BlockExpression,
   BooleanLiteral,
   BoolType,
+  CallExpression,
+  ByteLiteral,
+  ByteType,
+  BreakStatement,
+  DynamicArrayType,
+  ContinueStatement,
+  ArrayLiteral,
   AssignmentOperator,
   AssignmentStatement,
   AssignmentTarget,
@@ -13,6 +20,8 @@ import type {
   ExpressionStatement,
   Identifier,
   ForStatement,
+  FunctionDeclaration,
+  FunctionParameter,
   IfExpression,
   IfStatement,
   IndexExpression,
@@ -23,12 +32,19 @@ import type {
   IntegerLiteral,
   IntegerSign,
   LineInputPattern,
+  LiteralLineInputPattern,
+  LiteralTokenPattern,
+  MemberExpression,
   NameExpression,
   NameLineInputPattern,
   NameTokenPattern,
   Program,
   RequireExpression,
+  RegexLiteral,
+  RegexType,
+  ReturnStatement,
   Statement,
+  StringLiteral,
   StringType,
   TokenLineInputPattern,
   TokenInputPattern,
@@ -44,6 +60,7 @@ import type {
 } from "./ast";
 import type { Diagnostic } from "./diagnostic";
 import { lex } from "./lexer";
+import { decodeEscapedLiteral, decodeRawRegexLiteral } from "./literal";
 import { spanFrom } from "./source";
 import { TokenKind, type Token, type TokenKind as TokenKindType } from "./token";
 
@@ -112,6 +129,33 @@ class Parser {
     if (this.match(TokenKind.Var)) {
       return this.parseValueDeclaration(this.previous(), true);
     }
+    if (this.match(TokenKind.Fn)) {
+      return this.parseFunctionDeclaration(this.previous());
+    }
+    if (this.match(TokenKind.Return)) {
+      return this.parseReturnStatement(this.previous());
+    }
+    if (this.match(TokenKind.Break)) {
+      const keyword = this.previous();
+      const semicolon = this.consume(TokenKind.Semicolon, "Expected ';' after 'break'.");
+      const statement: BreakStatement = {
+        kind: "BreakStatement",
+        span: spanFrom(keyword.span.start, semicolon.span.end),
+      };
+      return statement;
+    }
+    if (this.match(TokenKind.Continue)) {
+      const keyword = this.previous();
+      const semicolon = this.consume(
+        TokenKind.Semicolon,
+        "Expected ';' after 'continue'.",
+      );
+      const statement: ContinueStatement = {
+        kind: "ContinueStatement",
+        span: spanFrom(keyword.span.start, semicolon.span.end),
+      };
+      return statement;
+    }
     if (this.match(TokenKind.Input)) {
       return this.parseInputBlock(this.previous());
     }
@@ -124,7 +168,6 @@ class Parser {
     if (this.match(TokenKind.If)) {
       const conditional = this.parseIfStatementOrExpression(this.previous());
       if (conditional.kind === "IfStatement") {
-        this.rejectTrailingControlSemicolon("statement-form if");
         return conditional;
       }
       const semicolon = this.consume(
@@ -241,7 +284,6 @@ class Parser {
     this.consume(TokenKind.RightParen, "Expected ')' after the repetition count.");
     this.consume(TokenKind.Times, "Expected 'times' after the repetition count.");
     const body = this.parseRequiredBlock("Expected a block after 'times'.");
-    this.rejectTrailingControlSemicolon("for");
     return {
       kind: "ForStatement",
       count,
@@ -255,7 +297,6 @@ class Parser {
     const condition = this.parseExpression();
     this.consume(TokenKind.RightParen, "Expected ')' after the while condition.");
     const body = this.parseRequiredBlock("Expected a block after the while condition.");
-    this.rejectTrailingControlSemicolon("while");
     return {
       kind: "WhileStatement",
       condition,
@@ -269,6 +310,57 @@ class Parser {
     return this.parseBlockExpression(leftBrace);
   }
 
+  private parseFunctionDeclaration(fnToken: Token): FunctionDeclaration {
+    const name = this.parseIdentifier("Expected a function name after 'fn'.");
+    this.consume(TokenKind.LeftParen, "Expected '(' after the function name.");
+    const parameters: FunctionParameter[] = [];
+    if (!this.check(TokenKind.RightParen)) {
+      do {
+        const parameterName = this.parseIdentifier("Expected a parameter name.");
+        this.consume(TokenKind.Colon, "Expected ':' after the parameter name.");
+        const valueType = this.parseType();
+        parameters.push({
+          kind: "FunctionParameter",
+          name: parameterName,
+          valueType,
+          span: spanFrom(parameterName.span.start, valueType.span.end),
+        });
+      } while (this.match(TokenKind.Comma));
+    }
+    this.consume(TokenKind.RightParen, "Expected ')' after the parameter list.");
+    this.consume(TokenKind.Colon, "Expected ':' before the function return type.");
+    const returnType = this.parseType();
+    if (this.match(TokenKind.Semicolon)) {
+      return {
+        kind: "FunctionDeclaration",
+        name,
+        parameters,
+        returnType,
+        body: null,
+        span: spanFrom(fnToken.span.start, this.previous().span.end),
+      };
+    }
+    const body = this.parseRequiredBlock("Expected ';' or a function body.");
+    return {
+      kind: "FunctionDeclaration",
+      name,
+      parameters,
+      returnType,
+      body,
+      span: spanFrom(fnToken.span.start, body.span.end),
+    };
+  }
+
+  private parseReturnStatement(returnToken: Token): ReturnStatement {
+    const value = this.check(TokenKind.Semicolon) ? null : this.parseExpression();
+    const semicolon = this.consume(TokenKind.Semicolon, "Expected ';' after 'return'.");
+    return {
+      kind: "ReturnStatement",
+      value,
+      span: spanFrom(returnToken.span.start, semicolon.span.end),
+    };
+  }
+
   private parseType(): ValueType {
     if (this.match(TokenKind.Int)) {
       return this.parseIntType(this.previous());
@@ -278,6 +370,29 @@ class Parser {
     }
     if (this.match(TokenKind.Array)) {
       return this.parseArrayType(this.previous());
+    }
+    if (this.match(TokenKind.ArrayV)) {
+      const arrayToken = this.previous();
+      this.consume(TokenKind.LeftBracket, "Expected '[' after 'Array_v'.");
+      const elementType = this.parseType();
+      const rightBracket = this.consume(
+        TokenKind.RightBracket,
+        "Expected ']' after the Array_v element type.",
+      );
+      const type: DynamicArrayType = {
+        kind: "DynamicArrayType",
+        elementType,
+        span: spanFrom(arrayToken.span.start, rightBracket.span.end),
+      };
+      return type;
+    }
+    if (this.match(TokenKind.Byte)) {
+      const type: ByteType = { kind: "ByteType", span: this.previous().span };
+      return type;
+    }
+    if (this.match(TokenKind.Regex)) {
+      const type: RegexType = { kind: "RegexType", span: this.previous().span };
+      return type;
     }
     if (this.match(TokenKind.Bool)) {
       const type: BoolType = { kind: "BoolType", span: this.previous().span };
@@ -290,7 +405,7 @@ class Parser {
     return this.fail(
       this.peek(),
       "PARSE_EXPECTED_TYPE",
-      "Expected 'Int', 'String', 'Array', 'Bool', or 'Unit' after ':'.",
+      "Expected an Invar value type after ':'.",
     );
   }
 
@@ -583,19 +698,54 @@ class Parser {
 
   private parsePostfixExpression(): Expression {
     let expression = this.parsePrimaryExpression();
-    while (this.match(TokenKind.LeftBracket)) {
-      const index = this.parseExpression();
-      const rightBracket = this.consume(
-        TokenKind.RightBracket,
-        "Expected ']' after the array index.",
-      );
-      const indexed: IndexExpression = {
-        kind: "IndexExpression",
-        collection: expression,
-        index,
-        span: spanFrom(expression.span.start, rightBracket.span.end),
-      };
-      expression = indexed;
+    for (;;) {
+      if (this.match(TokenKind.LeftBracket)) {
+        const index = this.parseExpression();
+        const rightBracket = this.consume(
+          TokenKind.RightBracket,
+          "Expected ']' after the index.",
+        );
+        const indexed: IndexExpression = {
+          kind: "IndexExpression",
+          collection: expression,
+          index,
+          span: spanFrom(expression.span.start, rightBracket.span.end),
+        };
+        expression = indexed;
+        continue;
+      }
+      if (this.match(TokenKind.Dot)) {
+        const member = this.parseIdentifier("Expected a member name after '.'.");
+        const accessed: MemberExpression = {
+          kind: "MemberExpression",
+          object: expression,
+          member,
+          span: spanFrom(expression.span.start, member.span.end),
+        };
+        expression = accessed;
+        continue;
+      }
+      if (this.match(TokenKind.LeftParen)) {
+        const arguments_: Expression[] = [];
+        if (!this.check(TokenKind.RightParen)) {
+          do {
+            arguments_.push(this.parseExpression());
+          } while (this.match(TokenKind.Comma));
+        }
+        const rightParen = this.consume(
+          TokenKind.RightParen,
+          "Expected ')' after the argument list.",
+        );
+        const call: CallExpression = {
+          kind: "CallExpression",
+          callee: expression,
+          arguments: arguments_,
+          span: spanFrom(expression.span.start, rightParen.span.end),
+        };
+        expression = call;
+        continue;
+      }
+      break;
     }
     return expression;
   }
@@ -618,6 +768,63 @@ class Parser {
         kind: "BooleanLiteral",
         value: token.kind === TokenKind.True,
         span: token.span,
+      };
+      return literal;
+    }
+    if (this.match(TokenKind.ByteLiteral)) {
+      const token = this.previous();
+      const bytes = this.literalBytes(token, 1, 1, false);
+      if (bytes.length !== 1) {
+        return this.fail(
+          token,
+          "PARSE_BYTE_LENGTH",
+          `A Byte literal must contain exactly one byte; this literal contains ${bytes.length}.`,
+        );
+      }
+      const literal: ByteLiteral = {
+        kind: "ByteLiteral",
+        value: bytes[0]!,
+        span: token.span,
+      };
+      return literal;
+    }
+    if (this.match(TokenKind.StringLiteral)) {
+      const token = this.previous();
+      const literal: StringLiteral = {
+        kind: "StringLiteral",
+        bytes: this.literalBytes(token, 1, 1, false),
+        span: token.span,
+      };
+      return literal;
+    }
+    if (this.match(TokenKind.RegexLiteral)) {
+      const token = this.previous();
+      const literal: RegexLiteral = {
+        kind: "RegexLiteral",
+        bytes: this.literalBytes(token, 2, 1, true),
+        span: token.span,
+      };
+      return literal;
+    }
+    if (this.match(TokenKind.LeftBracket)) {
+      const leftBracket = this.previous();
+      const elements: Expression[] = [];
+      if (!this.check(TokenKind.RightBracket)) {
+        do {
+          elements.push(this.parseExpression());
+        } while (
+          this.match(TokenKind.Comma) &&
+          !this.check(TokenKind.RightBracket)
+        );
+      }
+      const rightBracket = this.consume(
+        TokenKind.RightBracket,
+        "Expected ']' after the array literal.",
+      );
+      const literal: ArrayLiteral = {
+        kind: "ArrayLiteral",
+        elements,
+        span: spanFrom(leftBracket.span.start, rightBracket.span.end),
       };
       return literal;
     }
@@ -680,6 +887,10 @@ class Parser {
       if (
         this.check(TokenKind.Val) ||
         this.check(TokenKind.Var) ||
+        this.check(TokenKind.Fn) ||
+        this.check(TokenKind.Return) ||
+        this.check(TokenKind.Break) ||
+        this.check(TokenKind.Continue) ||
         this.check(TokenKind.Input) ||
         this.check(TokenKind.For) ||
         this.check(TokenKind.While) ||
@@ -694,7 +905,6 @@ class Parser {
         ? this.parseIfStatementOrExpression(this.previous())
         : this.parseExpression();
       if (expression.kind === "IfStatement") {
-        this.rejectTrailingControlSemicolon("statement-form if");
         statements.push(expression);
         continue;
       }
@@ -755,6 +965,25 @@ class Parser {
   }
 
   private parseLineInputPattern(): LineInputPattern {
+    if (this.match(TokenKind.LineInputLiteral)) {
+      const token = this.previous();
+      const bytes = this.literalBytes(token, 2, 2, false);
+      const terminated = this.match(TokenKind.Semicolon);
+      if (!terminated && !this.check(TokenKind.RightBrace)) {
+        return this.fail(
+          this.peek(),
+          "PARSE_EXPECTED_LINE_SEPARATOR",
+          "Expected ';' or '}' after a literal line input pattern.",
+        );
+      }
+      const pattern: LiteralLineInputPattern = {
+        kind: "LiteralLineInputPattern",
+        bytes,
+        terminated,
+        span: spanFrom(token.span.start, terminated ? this.previous().span.end : token.span.end),
+      };
+      return pattern;
+    }
     if (this.match(TokenKind.Line)) {
       return this.parseValueLineInputPattern(this.previous());
     }
@@ -772,7 +1001,7 @@ class Parser {
     let trailingComma = false;
     while (this.match(TokenKind.Comma)) {
       trailingComma = true;
-      if (this.check(TokenKind.Identifier)) {
+      if (this.isTokenInputPatternStart()) {
         tokens.push(this.parseTokenInputPattern());
         trailingComma = false;
         continue;
@@ -855,6 +1084,23 @@ class Parser {
   }
 
   private parseTokenInputPattern(): TokenInputPattern {
+    if (this.match(TokenKind.TokenInputLiteral)) {
+      const token = this.previous();
+      const bytes = this.literalBytes(token, 1, 1, false);
+      if (bytes.length === 0) {
+        return this.fail(
+          token,
+          "PARSE_EMPTY_TOKEN_LITERAL",
+          "A token input literal cannot be empty.",
+        );
+      }
+      const pattern: LiteralTokenPattern = {
+        kind: "LiteralTokenPattern",
+        bytes,
+        span: token.span,
+      };
+      return pattern;
+    }
     const token = this.consume(
       TokenKind.Identifier,
       "Expected a name as the token input pattern.",
@@ -904,6 +1150,13 @@ class Parser {
     return { kind: "Identifier", name: token.lexeme, span: token.span };
   }
 
+  private isTokenInputPatternStart(): boolean {
+    return (
+      this.check(TokenKind.Identifier) ||
+      this.check(TokenKind.TokenInputLiteral)
+    );
+  }
+
   private isLowerExclusiveRangeMarker(): boolean {
     return (
       this.check(TokenKind.Less) &&
@@ -930,14 +1183,20 @@ class Parser {
     return isAssignmentToken(this.tokens[offset]?.kind ?? TokenKind.EndOfFile);
   }
 
-  private rejectTrailingControlSemicolon(name: string): void {
-    if (this.check(TokenKind.Semicolon)) {
-      this.fail(
-        this.peek(),
-        "PARSE_UNEXPECTED_STATEMENT_SEMICOLON",
-        `A ${name} statement must not be followed by ';'.`,
-      );
+  private literalBytes(
+    token: Token,
+    prefixLength: number,
+    suffixLength: number,
+    raw: boolean,
+  ): readonly number[] {
+    const contents = token.lexeme.slice(prefixLength, -suffixLength);
+    const decoded = raw
+      ? decodeRawRegexLiteral(contents)
+      : decodeEscapedLiteral(contents);
+    if (decoded.error !== null) {
+      return this.fail(token, "PARSE_INVALID_ESCAPE", decoded.error);
     }
+    return decoded.bytes;
   }
 
   private consume(kind: TokenKindType, message: string): Token {
@@ -958,6 +1217,10 @@ class Parser {
       if (
         this.check(TokenKind.Val) ||
         this.check(TokenKind.Var) ||
+        this.check(TokenKind.Fn) ||
+        this.check(TokenKind.Return) ||
+        this.check(TokenKind.Break) ||
+        this.check(TokenKind.Continue) ||
         this.check(TokenKind.Input) ||
         this.check(TokenKind.For) ||
         this.check(TokenKind.While) ||

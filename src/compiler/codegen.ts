@@ -4,7 +4,9 @@ import type {
   AssignmentStatement,
   BinaryOperator,
   BlockExpression,
+  CallExpression,
   Expression,
+  FunctionDeclaration,
   IndexExpression,
   InputBlock,
   IntRange,
@@ -35,10 +37,16 @@ export function generateTestlib(
       : sourceComment(analyzed.program.source)),
     '#include "testlib.h"',
     "#include <climits>",
+    "#include <functional>",
+    "#include <initializer_list>",
+    "#include <memory>",
     "#include <string>",
     "#include <vector>",
     "",
     "struct iv_u{};",
+    "std::string iv_b(std::initializer_list<unsigned int>x){std::string s;s.reserve(x.size());for(unsigned int c:x)s.push_back(static_cast<char>(c));return s;}",
+    "struct iv_x{std::string s;};",
+    "bool iv_e(const std::string&s,const iv_x&r){return pattern(r.s).matches(s);}",
     'iv_u iv_q(bool x,const char*s){inf.ensuref(x,"require(%s) failed.",s);return{};}',
     'void iv_o(){quitf(_fail,"Invar integer expression overflow.");}',
     "long long iv_n(long long a){if(a==LLONG_MIN)iv_o();return-a;}",
@@ -47,7 +55,24 @@ export function generateTestlib(
     "long long iv_m(long long a,long long b){if(!a||!b)return 0;if((a==-1&&b==LLONG_MIN)||(b==-1&&a==LLONG_MIN))iv_o();if((a>0&&b>0&&a>LLONG_MAX/b)||(a>0&&b<0&&b<LLONG_MIN/a)||(a<0&&b>0&&a<LLONG_MIN/b)||(a<0&&b<0&&a<LLONG_MAX/b))iv_o();return a*b;}",
     'long long iv_d(long long a,long long b){if(!b)quitf(_fail,"Invar integer expression divides by zero.");if(a==LLONG_MIN&&b==-1)iv_o();long long q=a/b,r=a%b;if(r&&((r<0)!=(b<0)))--q;return q;}',
     'long long iv_r(long long a,long long b){if(!b)quitf(_fail,"Invar integer expression divides by zero.");if(a==LLONG_MIN&&b==-1)return 0;long long r=a%b;if(r&&((r<0)!=(b<0)))r+=b;return r;}',
-    "template<class T>struct iv_v{std::vector<T>a;std::vector<unsigned char>b;iv_v()=default;iv_v(long long n,const T&x,bool z){inf.ensuref(n>=0,\"Invar Array length cannot be negative.\");a.assign((std::size_t)n,x);b.assign((std::size_t)n,z?1:0);}void c(long long i)const{inf.ensuref(i>=0&&(std::size_t)i<a.size(),\"Invar Array index is out of bounds.\");}const T&r(long long i)const{c(i);inf.ensuref(b[(std::size_t)i],\"Invar Array element is read before initialization.\");return a[(std::size_t)i];}T&w(long long i){c(i);b[(std::size_t)i]=1;return a[(std::size_t)i];}};",
+    "long long iv_bl(long long x){return x==LLONG_MAX?x:x+1;}",
+    "long long iv_bu(long long x){return x==LLONG_MIN?x:x-1;}",
+    'void iv_z(const std::string&s,long long n,const char*x,const char*k){inf.ensuref(n>=0&&s.size()==static_cast<std::size_t>(n),"%s \'%s\' has byte length %llu; expected %lld.",k,x,static_cast<unsigned long long>(s.size()),n);}',
+    'template<class T>struct iv_v{struct S{std::vector<T>a;std::vector<unsigned char>b;};std::shared_ptr<S>s=std::make_shared<S>();iv_v()=default;iv_v(std::initializer_list<T>x){s->a.assign(x);s->b.assign(x.size(),1);}iv_v(long long n,const T&x,bool z){inf.ensuref(n>=0,"Invar Array length is %lld; expected a non-negative length.",n);s->a.assign((std::size_t)n,x);s->b.assign((std::size_t)n,z?1:0);}void c(long long i)const{inf.ensuref(i>=0&&(std::size_t)i<s->a.size(),"Invar Array index %lld is out of bounds for length %llu.",i,static_cast<unsigned long long>(s->a.size()));}T r(long long i)const{c(i);inf.ensuref(s->b[(std::size_t)i],"Invar Array element at index %lld is read before initialization.",i);return s->a[(std::size_t)i];}T&w(long long i){c(i);s->b[(std::size_t)i]=1;return s->a[(std::size_t)i];}long long n()const{return static_cast<long long>(s->a.size());}};',
+    'template<class T>struct iv_w{struct S{std::vector<T>a;std::vector<unsigned char>b;};std::shared_ptr<S>s=std::make_shared<S>();iv_w()=default;iv_w(std::initializer_list<T>x){s->a.assign(x);s->b.assign(x.size(),1);}void c(long long i)const{inf.ensuref(i>=0&&(std::size_t)i<s->a.size(),"Invar Array_v index %lld is out of bounds for length %llu.",i,static_cast<unsigned long long>(s->a.size()));}T r(long long i)const{c(i);inf.ensuref(s->b[(std::size_t)i],"Invar Array_v element at index %lld is read before initialization.",i);return s->a[(std::size_t)i];}T&w(long long i){c(i);s->b[(std::size_t)i]=1;return s->a[(std::size_t)i];}long long n()const{return static_cast<long long>(s->a.size());}iv_u p(const T&x){s->a.push_back(x);s->b.push_back(1);return{};}T o(){inf.ensuref(!s->a.empty(),"Cannot pop from an empty Invar Array_v.");std::size_t i=s->a.size()-1;inf.ensuref(s->b[i],"Cannot pop uninitialized Array_v element at index %llu.",static_cast<unsigned long long>(i));T x=s->a[i];s->a.pop_back();s->b.pop_back();return x;}iv_u z(long long n){inf.ensuref(n>=0,"Invar Array_v resize length is %lld; expected a non-negative length.",n);s->a.resize(static_cast<std::size_t>(n));s->b.resize(static_cast<std::size_t>(n),0);return{};}};',
+    "template<class A,class B>int iv_g(const A&a,const B&b);",
+    "template<class A,class B>int iv_g(const iv_v<A>&a,const iv_v<B>&b);",
+    "template<class A,class B>int iv_g(const iv_v<A>&a,const iv_w<B>&b);",
+    "template<class A,class B>int iv_g(const iv_w<A>&a,const iv_v<B>&b);",
+    "template<class A,class B>int iv_g(const iv_w<A>&a,const iv_w<B>&b);",
+    'int iv_g(const std::string&a,const std::string&b){std::size_t n=a.size()<b.size()?a.size():b.size();for(std::size_t i=0;i<n;++i){unsigned char x=static_cast<unsigned char>(a[i]),y=static_cast<unsigned char>(b[i]);if(x<y)return-1;if(y<x)return 1;}return a.size()<b.size()?-1:(b.size()<a.size()?1:0);}',
+    "template<class A,class B>int iv_g(const A&a,const B&b){return a<b?-1:(b<a?1:0);}",
+    "template<class A,class B>int iv_h(const A&a,const B&b){long long n=a.n()<b.n()?a.n():b.n();for(long long i=0;i<n;++i){int c=iv_g(a.r(i),b.r(i));if(c)return c;}return a.n()<b.n()?-1:(b.n()<a.n()?1:0);}",
+    "template<class A,class B>int iv_g(const iv_v<A>&a,const iv_v<B>&b){return iv_h(a,b);}",
+    "template<class A,class B>int iv_g(const iv_v<A>&a,const iv_w<B>&b){return iv_h(a,b);}",
+    "template<class A,class B>int iv_g(const iv_w<A>&a,const iv_v<B>&b){return iv_h(a,b);}",
+    "template<class A,class B>int iv_g(const iv_w<A>&a,const iv_w<B>&b){return iv_h(a,b);}",
+    'unsigned char iv_c(const std::string&s,long long i){inf.ensuref(i>=0&&(std::size_t)i<s.size(),"Invar String byte index %lld is out of bounds for byte length %llu.",i,static_cast<unsigned long long>(s.size()));return static_cast<unsigned char>(s[(std::size_t)i]);}',
     'std::string iv_l(){std::string s;while(!inf.eof()){char c=inf.readChar();if(c==\'\\r\'||c==\'\\n\')quitf(_fail,"Expected EOF after the final Invar line input.");s+=c;}return s;}',
     "",
     "int main(int argc, char* argv[]) {",
@@ -55,13 +80,35 @@ export function generateTestlib(
     "",
   ];
 
-  for (const symbol of analyzed.allSymbols) {
+  for (const symbol of analyzed.allSymbols.filter(
+    (value) => value.ownerFunction === null,
+  )) {
     lines.push(`    ${cxxValueType(symbol.valueType)} ${symbol.cxxName};`);
   }
+  lines.push(
+    '    const pattern _513p("[^\\\\ ]+");',
+    '    const pattern _513l("[^\\r\\n]*");',
+  );
   lines.push("    bool _513f=false;");
   if (analyzed.allSymbols.length > 0) {
     lines.push("");
   }
+  const topLevelFunctions = analyzed.functions.filter(
+    (info) => info.ownerFunction === null,
+  );
+  for (const info of topLevelFunctions) {
+    lines.push(
+      `    std::function<${cxxValueType(info.returnType)}(` +
+        `${info.parameters.map((parameter) => cxxValueType(parameter.valueType)).join(",")})> ` +
+        `${info.cxxName};`,
+    );
+  }
+  for (const info of topLevelFunctions) {
+    if (info.definition !== null) {
+      emitFunctionDefinition(lines, info.definition, analyzed, 1);
+    }
+  }
+  if (topLevelFunctions.length > 0) lines.push("");
 
   for (const statement of analyzed.program.items) {
     emitStatement(lines, statement, analyzed, 1);
@@ -90,6 +137,22 @@ function emitStatement(
     case "VarDeclaration":
       emitDeclaration(lines, statement, analyzed, indent);
       return;
+    case "FunctionDeclaration":
+      emitNestedFunctionScope(lines, statement, analyzed, indent);
+      return;
+    case "ReturnStatement":
+      lines.push(
+        statement.value === null
+          ? `${padding(indent)}return iv_u{};`
+          : `${padding(indent)}return ${expression(statement.value, analyzed)};`,
+      );
+      return;
+    case "BreakStatement":
+      lines.push(`${padding(indent)}break;`);
+      return;
+    case "ContinueStatement":
+      lines.push(`${padding(indent)}continue;`);
+      return;
     case "EmptyStatement":
       return;
     case "InputBlock":
@@ -114,6 +177,41 @@ function emitStatement(
       emitBlockContents(lines, statement.body, analyzed, indent + 1);
       lines.push(`${padding(indent)}}`);
       return;
+  }
+}
+
+function emitNestedFunctionScope(
+  lines: string[],
+  declaration: FunctionDeclaration,
+  analyzed: AnalyzedProgram,
+  indent: number,
+): void {
+  const current = analyzed.resolvedFunctionDeclarations.get(declaration);
+  if (current === undefined || current.ownerFunction === null) return;
+  const functions = analyzed.functions.filter(
+    (info) => info.scopeId === current.scopeId,
+  );
+  const first = functions.reduce(
+    (earliest, info) =>
+      info.declaration.span.start.offset < earliest.span.start.offset
+        ? info.declaration
+        : earliest,
+    functions[0]!.declaration,
+  );
+  if (declaration !== first) return;
+
+  const pad = padding(indent);
+  for (const info of functions) {
+    lines.push(
+      `${pad}std::function<${cxxValueType(info.returnType)}(` +
+        `${info.parameters.map((parameter) => cxxValueType(parameter.valueType)).join(",")})> ` +
+        `${info.cxxName};`,
+    );
+  }
+  for (const info of functions) {
+    if (info.definition !== null) {
+      emitFunctionDefinition(lines, info.definition, analyzed, indent);
+    }
   }
 }
 
@@ -193,6 +291,11 @@ function emitDeclaration(
     (symbol) => symbol.declaration === declaration,
   );
   for (const symbol of symbols) {
+    if (symbol.ownerFunction !== null) {
+      lines.push(
+        `${padding(indent)}${cxxValueType(symbol.valueType)} ${symbol.cxxName};`,
+      );
+    }
     if (declaration.initializer !== null) {
       lines.push(
         `${padding(indent)}${symbol.cxxName} = ` +
@@ -205,6 +308,40 @@ function emitDeclaration(
       );
     }
   }
+}
+
+function emitFunctionDefinition(
+  lines: string[],
+  declaration: FunctionDeclaration,
+  analyzed: AnalyzedProgram,
+  indent: number,
+): void {
+  const info = analyzed.resolvedFunctionDeclarations.get(declaration);
+  if (info === undefined) return;
+  const pad = padding(indent);
+  if (declaration.body === null) return;
+
+  const parameters = declaration.parameters.map((parameter) => {
+    const symbol = analyzed.allSymbols.find(
+      (candidate) => candidate.declaration === parameter,
+    );
+    return `${cxxValueType(parameter.valueType)} ${symbol?.cxxName ?? `_512_${parameter.name.name}`}`;
+  });
+  lines.push(
+    `${pad}${info.cxxName} = [&](${parameters.join(",")}) -> ` +
+      `${cxxValueType(declaration.returnType)} {`,
+  );
+  for (const statement of declaration.body.statements) {
+    emitStatement(lines, statement, analyzed, indent + 1);
+  }
+  if (declaration.body.tail !== null) {
+    lines.push(
+      `${padding(indent + 1)}return ${expression(declaration.body.tail, analyzed)};`,
+    );
+  } else if (declaration.returnType.kind === "UnitType") {
+    lines.push(`${padding(indent + 1)}return iv_u{};`);
+  }
+  lines.push(`${pad}};`);
 }
 
 function emitTypeSnapshots(
@@ -245,6 +382,11 @@ function collectTypeExpressions(
       collectTypeExpressions(valueType.elementType, output);
       output.push(valueType.length);
       return;
+    case "DynamicArrayType":
+      collectTypeExpressions(valueType.elementType, output);
+      return;
+    case "ByteType":
+    case "RegexType":
     case "BoolType":
     case "UnitType":
       return;
@@ -265,7 +407,8 @@ function emitForStatement(
     `${pad}const long long ${countName} = ${expression(statement.count, analyzed)};`,
   );
   lines.push(
-    `${pad}inf.ensuref(${countName} >= 0, "Invar for count cannot be negative.");`,
+    `${pad}inf.ensuref(${countName} >= 0, ` +
+      `"Invar for count is %lld; expected a non-negative count.", ${countName});`,
   );
   lines.push(
     `${pad}for (long long ${indexName} = 0; ${indexName} < ${countName}; ` +
@@ -327,9 +470,20 @@ function emitInputBlock(
         lines.push(`${pad}if (_513f) {`);
         lines.push(`${pad}    quitf(_fail, "Expected a whole line at line start.");`);
         lines.push(`${pad}}`);
-        emitLineRead(lines, symbol, analyzed, line.terminated, indent);
+        emitLineRead(
+          lines,
+          symbol,
+          analyzed,
+          line.terminated,
+          indent,
+          line.span.start.offset,
+        );
         lines.push(`${pad}_513f=${line.terminated ? "false" : "true"};`);
       }
+      continue;
+    }
+    if (line.kind === "LiteralLineInputPattern") {
+      emitLiteralLineRead(lines, line.bytes, line.terminated, line.span.start.offset, indent);
       continue;
     }
 
@@ -343,6 +497,26 @@ function emitInputBlock(
       lines.push(`${pad}_513f=false;`);
     }
   }
+}
+
+function emitLiteralLineRead(
+  lines: string[],
+  bytes: readonly number[],
+  terminated: boolean,
+  offset: number,
+  indent: number,
+): void {
+  const pad = padding(indent);
+  const temporary = `_513k${offset}`;
+  lines.push(
+    `${pad}if (_513f)quitf(_fail,"Expected a whole line at line start.");`,
+    terminated
+      ? `${pad}const std::string ${temporary}=inf.readLine(_513l,"literal line");`
+      : `${pad}const std::string ${temporary}=iv_l();`,
+    `${pad}inf.ensuref(${temporary}==${byteString(bytes)},` +
+      `"Input line '%s' does not equal the required Invar literal.",${temporary}.c_str());`,
+    `${pad}_513f=${terminated ? "false" : "true"};`,
+  );
 }
 
 function emitTokenPatternRead(
@@ -366,6 +540,18 @@ function emitTokenPatternRead(
     }
     return;
   }
+  if (pattern.kind === "LiteralTokenPattern") {
+    const pad = padding(indent);
+    const temporary = `_513k${pattern.span.start.offset}`;
+    const label = sourceText(pattern, analyzed);
+    lines.push(
+      `${pad}const std::string ${temporary}=inf.readToken(_513p,${cxxStringLiteral(label)});`,
+      `${pad}inf.ensuref(${temporary}==${byteString(pattern.bytes)},` +
+        `"Input token '%s' does not equal the required literal '%s'.",` +
+        `${temporary}.c_str(),${cxxStringLiteral(label)});`,
+    );
+    return;
+  }
   const type = indexedValueType(pattern.target, analyzed);
   if (type === null) {
     return;
@@ -379,7 +565,7 @@ function emitTokenPatternRead(
   emitRead(
     lines,
     targetName,
-    "array element",
+    sourceText(pattern.target, analyzed),
     type,
     analyzed,
     indent + 1,
@@ -394,6 +580,7 @@ function emitLineRead(
   analyzed: AnalyzedProgram,
   terminated: boolean,
   indent: number,
+  uniqueOffset: number,
 ): void {
   const pad = padding(indent);
   if (symbol.valueType.kind === "IntType") {
@@ -404,7 +591,7 @@ function emitLineRead(
       symbol.valueType,
       analyzed,
       indent,
-      symbol.declaration.span.start.offset,
+      uniqueOffset,
     );
     if (terminated) {
       lines.push(`${pad}inf.readEoln();`);
@@ -416,17 +603,21 @@ function emitLineRead(
   }
   lines.push(
     terminated
-      ? `${pad}${symbol.cxxName} = inf.readLine();`
+      ? `${pad}${symbol.cxxName} = inf.readLine(` +
+        `${stringLinePattern(symbol.valueType, analyzed)}, ` +
+        `${cxxStringLiteral(symbol.name)});`
       : `${pad}${symbol.cxxName}=iv_l();`,
   );
-  emitStringLengthCheck(
-    lines,
-    symbol.cxxName,
-    symbol.name,
-    symbol.valueType,
-    analyzed,
-    indent,
-  );
+  if (!terminated) {
+    emitStringLengthCheck(
+      lines,
+      symbol.cxxName,
+      symbol.name,
+      symbol.valueType,
+      analyzed,
+      indent,
+    );
+  }
 }
 
 function emitRead(
@@ -440,30 +631,27 @@ function emitRead(
 ): void {
   const pad = padding(indent);
   if (valueType.kind === "IntType") {
-    lines.push(`${pad}${target} = inf.readLong();`);
-    if (valueType.range !== null) {
-      lines.push(
-        `${pad}inf.ensuref(${rangeCondition(target, valueType.range, analyzed)}, ` +
-          `"Value '${label}' violates its Invar range.");`,
-      );
-    }
-    return;
-  }
-  if (valueType.kind === "StringType") {
-    lines.push(`${pad}${target} = inf.readToken();`);
-    emitStringLengthCheck(lines, target, label, valueType, analyzed, indent);
-    return;
-  }
-  if (valueType.kind === "ArrayType") {
-    emitCompactArrayRead(
+    emitIntegerRead(
       lines,
       target,
       label,
-      valueType,
+      valueType.range,
       analyzed,
       indent,
       uniqueOffset,
     );
+    return;
+  }
+  if (valueType.kind === "StringType") {
+    lines.push(
+      `${pad}${target} = inf.readToken(` +
+        `${stringTokenPattern(valueType, analyzed)}, ` +
+        `${cxxStringLiteral(label)});`,
+    );
+    return;
+  }
+  if (valueType.kind === "ArrayType") {
+    return;
   }
 }
 
@@ -480,52 +668,73 @@ function emitStringLengthCheck(
   }
   const pad = padding(indent);
   lines.push(
-    `${pad}inf.ensuref(static_cast<long long>(${target}.size()) == ` +
-      `${typeExpression(valueType.length, analyzed)}, ` +
-      `"String '${label}' has an invalid byte length.");`,
+    `${pad}iv_z(${target},${typeExpression(valueType.length, analyzed)},` +
+      `${cxxStringLiteral(label)},"String");`,
   );
 }
 
-function rangeCondition(
-  target: string,
-  range: IntRange,
-  analyzed: AnalyzedProgram,
-): string {
-  const lowerOperator = range.lowerInclusive ? "<=" : "<";
-  const upperOperator = range.upperInclusive ? "<=" : "<";
-  return (
-    `(${typeExpression(range.lower, analyzed)} ${lowerOperator} ${target}) && ` +
-    `(${target} ${upperOperator} ${typeExpression(range.upper, analyzed)})`
-  );
-}
-
-function emitCompactArrayRead(
+function emitIntegerRead(
   lines: string[],
   target: string,
   label: string,
-  valueType: ArrayType,
+  range: IntRange | null,
   analyzed: AnalyzedProgram,
   indent: number,
   uniqueOffset: number,
 ): void {
   const pad = padding(indent);
-  const token = `_513t${uniqueOffset}`;
-  const index = `_513i${uniqueOffset}`;
-  lines.push(`${pad}const std::string ${token} = inf.readToken();`);
+  const name = cxxStringLiteral(label);
+  if (range === null) {
+    lines.push(`${pad}${target} = inf.readLong(LLONG_MIN, LLONG_MAX, ${name});`);
+    return;
+  }
+
+  const suffix = uniqueOffset.toString();
+  const lower = `_513l${suffix}`;
+  const upper = `_513u${suffix}`;
+  const minimum = `_513m${suffix}`;
+  const maximum = `_513x${suffix}`;
   lines.push(
-    `${pad}inf.ensuref(static_cast<long long>(${token}.size()) == ` +
-      `${typeExpression(valueType.length, analyzed)}, ` +
-      `"Array '${label}' has an invalid compact token byte length.");`,
+    `${pad}const long long ${lower}=${typeExpression(range.lower, analyzed)};`,
+    `${pad}const long long ${upper}=${typeExpression(range.upper, analyzed)};`,
+    `${pad}const long long ${minimum}=` +
+      `${range.lowerInclusive ? lower : `iv_bl(${lower})`};`,
+    `${pad}const long long ${maximum}=` +
+      `${range.upperInclusive ? upper : `iv_bu(${upper})`};`,
   );
+  const lowerExists = range.lowerInclusive ? "true" : `${lower}!=LLONG_MAX`;
+  const upperExists = range.upperInclusive ? "true" : `${upper}!=LLONG_MIN`;
   lines.push(
-    `${pad}for (long long ${index} = 0; ` +
-      `${index} < static_cast<long long>(${token}.size()); ++${index}) {`,
+    `${pad}inf.ensuref(${lowerExists}&&${upperExists}&&${minimum}<=${maximum},` +
+      `"Integer '%s' has an empty Invar range after evaluating its bounds ` +
+      `to %lld and %lld.",${name},${lower},${upper});`,
+    `${pad}${target} = inf.readLong(${minimum}, ${maximum}, ${name});`,
   );
-  lines.push(
-    `${pad}    ${target}.w(${index}) = ` +
-      `std::string(1, ${token}[static_cast<std::size_t>(${index})]);`,
-  );
-  lines.push(`${pad}}`);
+}
+
+function stringTokenPattern(
+  valueType: StringType,
+  analyzed: AnalyzedProgram,
+): string {
+  return valueType.length === null
+    ? "_513p"
+    : exactTokenPattern(valueType.length, analyzed);
+}
+
+function exactTokenPattern(
+  length: Expression,
+  analyzed: AnalyzedProgram,
+): string {
+  return `format("[^\\\\ ]{%lld}",${typeExpression(length, analyzed)})`;
+}
+
+function stringLinePattern(
+  valueType: StringType,
+  analyzed: AnalyzedProgram,
+): string {
+  return valueType.length === null
+    ? "_513l"
+    : `format("[^\\r\\n]{%lld}",${typeExpression(valueType.length, analyzed)})`;
 }
 
 function indexedValueType(
@@ -533,9 +742,11 @@ function indexedValueType(
   analyzed: AnalyzedProgram,
 ): ValueType | null {
   const collection = analyzed.expressionTypes.get(target.collection);
-  return collection?.base === "Array"
-    ? collection.arrayType!.elementType
-    : null;
+  if (collection?.base === "Array") return collection.arrayType!.elementType;
+  if (collection?.base === "ArrayV") {
+    return collection.dynamicArrayType!.elementType;
+  }
+  return null;
 }
 
 function readableCollection(
@@ -589,6 +800,12 @@ function cxxDefaultValue(valueType: Exclude<ValueType, ArrayType>): string {
       return "0LL";
     case "StringType":
       return "std::string{}";
+    case "DynamicArrayType":
+      return `${cxxValueType(valueType)}{}`;
+    case "ByteType":
+      return "static_cast<unsigned char>(0)";
+    case "RegexType":
+      return "iv_x{}";
     case "BoolType":
       return "false";
     case "UnitType":
@@ -599,10 +816,16 @@ function cxxDefaultValue(valueType: Exclude<ValueType, ArrayType>): string {
 function expression(value: Expression, analyzed: AnalyzedProgram): string {
   switch (value.kind) {
     case "NameExpression":
+      if (value.name === "INT64_MIN") return "LLONG_MIN";
+      if (value.name === "INT64_MAX") return "LLONG_MAX";
       return analyzed.resolvedNames.get(value)?.cxxName ?? `_512_${value.name}`;
-    case "IndexExpression":
-      return `${readableCollection(value.collection, analyzed)}.r(` +
-        `${expression(value.index, analyzed)})`;
+    case "IndexExpression": {
+      const collection = readableCollection(value.collection, analyzed);
+      const type = analyzed.expressionTypes.get(value.collection);
+      return type?.base === "String"
+        ? `iv_c(${collection},${expression(value.index, analyzed)})`
+        : `${collection}.r(${expression(value.index, analyzed)})`;
+    }
     case "IntegerLiteral":
       if (value.value === I64_MIN) {
         return "(-9223372036854775807LL - 1)";
@@ -610,6 +833,28 @@ function expression(value: Expression, analyzed: AnalyzedProgram): string {
       return `${value.value.toString()}LL`;
     case "BooleanLiteral":
       return value.value ? "true" : "false";
+    case "ByteLiteral":
+      return `static_cast<unsigned char>(${value.value})`;
+    case "StringLiteral":
+      return byteString(value.bytes);
+    case "RegexLiteral":
+      return `iv_x{${byteString(value.bytes)}}`;
+    case "ArrayLiteral": {
+      const type = analyzed.expressionTypes.get(value) ?? unitRefinement();
+      return (
+        `${cxxExpressionType(type)}{` +
+        `${value.elements.map((element) => expression(element, analyzed)).join(",")}}`
+      );
+    }
+    case "MemberExpression": {
+      const object = expression(value.object, analyzed);
+      const type = analyzed.expressionTypes.get(value.object);
+      return type?.base === "String"
+        ? `static_cast<long long>(${object}.size())`
+        : `${object}.n()`;
+    }
+    case "CallExpression":
+      return callExpression(value, analyzed);
     case "UnaryExpression": {
       const operand = expression(value.operand, analyzed);
       if (value.operator === "plus") return `(${operand})`;
@@ -645,13 +890,44 @@ function typeExpression(
 }
 
 function sourceText(
-  value: Expression,
+  value: { readonly span: Expression["span"] },
   analyzed: AnalyzedProgram,
 ): string {
   return analyzed.program.source.slice(
     value.span.start.offset,
     value.span.end.offset,
   );
+}
+
+function byteString(bytes: readonly number[]): string {
+  return `iv_b({${bytes.map((value) => `${value}u`).join(",")}})`;
+}
+
+function callExpression(
+  value: CallExpression,
+  analyzed: AnalyzedProgram,
+): string {
+  const arguments_ = value.arguments
+    .map((argument) => expression(argument, analyzed))
+    .join(",");
+  if (
+    value.callee.kind === "NameExpression" &&
+    value.callee.name === "matches"
+  ) {
+    return `iv_e(${arguments_})`;
+  }
+  if (value.callee.kind === "MemberExpression") {
+    const object = expression(value.callee.object, analyzed);
+    const method =
+      value.callee.member.name === "push"
+        ? "p"
+        : value.callee.member.name === "pop"
+          ? "o"
+          : "z";
+    return `${object}.${method}(${arguments_})`;
+  }
+  const functionInfo = analyzed.resolvedFunctions.get(value);
+  return `${functionInfo?.cxxName ?? "_514_unknown"}(${arguments_})`;
 }
 
 function cxxStringLiteral(value: string): string {
@@ -702,17 +978,17 @@ function binaryExpression(
     case "modulo":
       return `iv_r(${leftCode},${rightCode})`;
     case "equal":
-      return `((${leftCode}) == (${rightCode}))`;
+      return `(iv_g(${leftCode},${rightCode})==0)`;
     case "notEqual":
-      return `((${leftCode}) != (${rightCode}))`;
+      return `(iv_g(${leftCode},${rightCode})!=0)`;
     case "less":
-      return `((${leftCode}) < (${rightCode}))`;
+      return `(iv_g(${leftCode},${rightCode})<0)`;
     case "lessEqual":
-      return `((${leftCode}) <= (${rightCode}))`;
+      return `(iv_g(${leftCode},${rightCode})<=0)`;
     case "greater":
-      return `((${leftCode}) > (${rightCode}))`;
+      return `(iv_g(${leftCode},${rightCode})>0)`;
     case "greaterEqual":
-      return `((${leftCode}) >= (${rightCode}))`;
+      return `(iv_g(${leftCode},${rightCode})>=0)`;
     case "logicalAnd":
       return `((${leftCode}) && (${rightCode}))`;
     case "logicalOr":
@@ -728,6 +1004,12 @@ function cxxValueType(valueType: ValueType): string {
       return "std::string";
     case "ArrayType":
       return `iv_v<${cxxValueType(valueType.elementType)}>`;
+    case "DynamicArrayType":
+      return `iv_w<${cxxValueType(valueType.elementType)}>`;
+    case "ByteType":
+      return "unsigned char";
+    case "RegexType":
+      return "iv_x";
     case "BoolType":
       return "bool";
     case "UnitType":
@@ -764,6 +1046,12 @@ function cxxExpressionType(type: RefinementType): string {
       return "iv_u";
     case "Array":
       return cxxValueType(type.arrayType!);
+    case "ArrayV":
+      return cxxValueType(type.dynamicArrayType!);
+    case "Byte":
+      return "unsigned char";
+    case "Regex":
+      return "iv_x";
   }
 }
 

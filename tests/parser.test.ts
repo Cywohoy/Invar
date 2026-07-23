@@ -394,16 +394,16 @@ describe("parser", () => {
     });
   });
 
-  it("rejects trailing semicolons after statement-form control flow", () => {
+  it("treats trailing semicolons after statement-form control flow as empty statements", () => {
     const statementIf = parse("input {} if (true) {} else {};");
     const forLoop = parse("input {} for (1) times {};");
     const whileLoop = parse("input {} while (true) {};");
 
     for (const result of [statementIf, forLoop, whileLoop]) {
-      expect(result.program).toBeNull();
-      expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toContain(
-        "PARSE_UNEXPECTED_STATEMENT_SEMICOLON",
-      );
+      expect(result.diagnostics).toEqual([]);
+      expect(result.program?.items.at(-1)).toMatchObject({
+        kind: "EmptyStatement",
+      });
     }
   });
 
